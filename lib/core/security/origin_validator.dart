@@ -35,20 +35,31 @@ class OriginValidator {
     if (originHeader == null || originHeader.trim().isEmpty) {
       return true;
     }
-    final normalized = originHeader.trim().toLowerCase();
-    if (allowedOrigins.contains('*')) {
+    final normalized = _normalizeOrigin(originHeader);
+    if (allowedOrigins.any((a) => a.trim() == '*')) {
       return true;
     }
     for (final allowed in allowedOrigins) {
-      if (allowed.trim().toLowerCase() == normalized) {
+      if (_normalizeOrigin(allowed) == normalized) {
         return true;
       }
     }
     // Also permit localhost / 127.0.0.1 origins on any port by default for local Web POS
     final uri = Uri.tryParse(normalized);
-    if (uri != null && (uri.host == 'localhost' || uri.host == '127.0.0.1')) {
+    if (uri != null &&
+        (uri.host == 'localhost' ||
+            uri.host == '127.0.0.1' ||
+            uri.host == '::1')) {
       return true;
     }
     return false;
+  }
+
+  static String _normalizeOrigin(String value) {
+    var s = value.trim().toLowerCase();
+    while (s.endsWith('/')) {
+      s = s.substring(0, s.length - 1);
+    }
+    return s;
   }
 }

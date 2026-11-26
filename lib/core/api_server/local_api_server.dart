@@ -28,6 +28,7 @@ class LocalApiServer extends ChangeNotifier {
   final RateLimiter rateLimiter = RateLimiter(maxRequests: 240);
 
   HttpServer? _server;
+  HttpServer? _ipv6Server;
   int _boundPort = AppConstants.defaultLocalApiPort;
 
   LocalApiServer({
@@ -54,25 +55,42 @@ class LocalApiServer extends ChangeNotifier {
         .addMiddleware(_securityAndCorsMiddleware)
         .addHandler(router.call);
 
-    // Strictly bind to 127.0.0.1 only (Section 3.A & 14)
+    // Strictly bind to loopback only (127.0.0.1 and ::1 for Windows localhost resolution)
     _server = await shelf_io.serve(
       handler,
       InternetAddress.loopbackIPv4,
       targetPort,
     );
     _boundPort = _server!.port;
+    try {
+      _ipv6Server = await shelf_io.serve(
+        handler,
+        InternetAddress.loopbackIPv6,
+        _boundPort,
+      );
+    } catch (_) {
+      _ipv6Server = null;
+    }
     logger.info('LocalApiServer', 'Started Local HTTP API server', {
       'host': AppConstants.localApiBindHost,
       'port': _boundPort,
+      'ipv6Loopback': _ipv6Server != null,
     });
     notifyListeners();
   }
 
   /// Stops the Local HTTP API server cleanly.
   Future<void> stop() async {
+    final hadServer = _server != null || _ipv6Server != null;
     if (_server != null) {
       await _server!.close(force: true);
       _server = null;
+    }
+    if (_ipv6Server != null) {
+      await _ipv6Server!.close(force: true);
+      _ipv6Server = null;
+    }
+    if (hadServer) {
       logger.info('LocalApiServer', 'Stopped Local HTTP API server');
       notifyListeners();
     }
@@ -839,6 +857,7 @@ class LocalApiServer extends ChangeNotifier {
       'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
       'Access-Control-Allow-Headers':
           'Origin, Content-Type, Accept, Authorization, X-Requested-With',
+      'Access-Control-Allow-Private-Network': 'true',
       'Access-Control-Max-Age': '3600',
       'Vary': 'Origin',
       'X-Content-Type-Options': 'nosniff',

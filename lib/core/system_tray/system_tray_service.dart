@@ -24,6 +24,8 @@ class SystemTrayService {
       await _channel.invokeMethod<void>('initTray', {
         'title': 'POS Print',
         'status': statusText,
+        'openLabel': 'เปิดหน้าต่างหลัก POS Print Agent',
+        'quitLabel': 'ออกจากโปรแกรมอย่างปลอดภัย (Quit)',
       });
     } catch (_) {
       // Ignored in headless test environments or when channel is not registered
