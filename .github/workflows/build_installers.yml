@@ -1,0 +1,64 @@
+name: Build Windows & macOS Installers
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-windows-installer:
+    name: Build Windows x64 Installer (.exe & .zip)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install dependencies & run tests
+        run: |
+          flutter pub get
+          flutter test
+
+      - name: Build Windows Release & Setup.exe Installer
+        run: |
+          powershell -ExecutionPolicy Bypass -File installer/windows/build_windows_installer.ps1
+
+      - name: Upload Windows Installer Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: POS-Print-Agent-Windows-Installers
+          path: dist/windows/*
+
+  build-macos-installer:
+    name: Build macOS Installer (.dmg & .pkg)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install dependencies & run tests
+        run: |
+          flutter pub get
+          flutter test
+
+      - name: Build macOS DMG & PKG Installers
+        run: |
+          chmod +x installer/macos/build_macos_installer.sh
+          ./installer/macos/build_macos_installer.sh
+
+      - name: Upload macOS Installer Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: POS-Print-Agent-macOS-Installers
+          path: dist/macos/*
